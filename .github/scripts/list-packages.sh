@@ -4,6 +4,11 @@
 # and its tools read, every format loaded, and every program latexmk ran.
 set -uo pipefail
 
+# Compile once untraced, so that building any missing format (which reads
+# every installed language's hyphenation patterns) is not recorded
+latexmk "$ENGINE" -interaction=nonstopmode "$ROOT_FILE" > /dev/null 2>&1
+latexmk -C "$ROOT_FILE" > /dev/null 2>&1
+
 # kpathsea logs every file it finds, including fonts XeTeX and xdvipdfmx
 # load, which latexmk's .fls record of TeX's own reads omits
 KPATHSEA_DEBUG=32 latexmk "$ENGINE" -recorder -file-line-error -interaction=nonstopmode "$ROOT_FILE" \
