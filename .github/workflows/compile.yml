@@ -1,28 +1,50 @@
 name: Build LaTeX document
 
-on: [push]
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  # Root .tex file to compile (Overleaf projects often use a name other than main.tex)
+  ROOT_FILE: main.tex
 
 jobs:
   build_latex:
-  
+
     runs-on: ubuntu-latest
-    
+
+    # Needed to create tags and releases
+    permissions:
+      contents: write
+
     steps:
       - name: Set up Git repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
       - name: Compile LaTeX document
-        uses: dante-ev/latex-action@master
+        uses: xu-cheng/latex-action@v4
         with:
-          root_file: main.tex
-          args: "-xelatex"
-      - name: Upload PDF
-        uses: actions/upload-artifact@v2
-        with:
-          name: compiled-pdf
-          path: main.pdf
+          root_file: ${{ env.ROOT_FILE }}
+          # .latexmkrc selects XeLaTeX, but latexmk's command-line -pdf flag would override it
+          latexmk_use_xelatex: true
+      - name: Publish PDF as release
+        # Releases are not subject to the Actions artifact retention period
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          pdf="${ROOT_FILE%.tex}.pdf"
+          tag="build-${SHA::7}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" "$pdf" --clobber
+          else
+            gh release create "$tag" "$pdf" \
+              --target "$SHA" \
+              --title "Build ${SHA::7} ($(git log -1 --format=%cs "$SHA"))" \
+              --notes "Compiled from ${GITHUB_REF_NAME} at ${SHA}."
+          fi
       - name: Upload logs on failure
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: run-log
-          path: main.log
+          path: "*.log"
