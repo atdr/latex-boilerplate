@@ -7,13 +7,17 @@ on:
       texlive_version:
         description: TeX Live version (e.g. 2017), overriding TEXLIVE_VERSION below
         required: false
+      resolve_packages:
+        description: Resolve missing packages and commit them to texlive-packages.txt
+        type: boolean
+        default: false
 
 env:
   # Root .tex file to compile (Overleaf projects often use a name other than main.tex)
   ROOT_FILE: main.tex
   # latexmk engine flag: -pdf (pdfLaTeX, Overleaf's default), -xelatex or -lualatex
   ENGINE: -xelatex
-  # TeX Live release year (2013 onwards), or latest
+  # TeX Live release year (e.g. 2017), or latest
   TEXLIVE_VERSION: latest
 
 jobs:
@@ -21,21 +25,43 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    # Needed to create tags and releases
+    # Needed to create tags and releases, and to commit resolved packages
     permissions:
       contents: write
 
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v7
-      - name: Compile LaTeX document
+      - name: Select TeX Live release
+        id: texlive
         env:
           VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
         run: |
-          if [ "$VERSION" = latest ]; then image=texlive/texlive:latest; else image="texlive/texlive:TL${VERSION}-historic"; fi
-          echo "IMAGE=$image" >> "$GITHUB_ENV"
-          docker run --rm -v "$PWD:/workdir" -w /workdir "$image" \
-            latexmk "$ENGINE" -file-line-error -interaction=nonstopmode "$ROOT_FILE"
+          if [ "$VERSION" = latest ]; then
+            echo "TEXLIVE=TeX Live (latest)" >> "$GITHUB_ENV"
+          else
+            # Final, frozen state of that year's release
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "repository=https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
+            echo "TEXLIVE=TeX Live $VERSION" >> "$GITHUB_ENV"
+          fi
+      - name: Install TeX Live
+        # Installs only the listed packages, and caches them between runs
+        uses: zauguin/install-texlive@v4
+        with:
+          package_file: texlive-packages.txt
+          texlive_version: ${{ steps.texlive.outputs.version }}
+          repository: ${{ steps.texlive.outputs.repository }}
+      - name: Compile LaTeX document
+        run: .github/scripts/compile.sh ${{ inputs.resolve_packages && '--resolve' || '' }}
+      - name: Commit resolved packages
+        if: ${{ inputs.resolve_packages }}
+        run: |
+          git diff --quiet texlive-packages.txt && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Add resolved TeX Live packages" texlive-packages.txt
+          git push origin "HEAD:${GITHUB_REF_NAME}"
       - name: Publish PDF as release
         # Releases are not subject to the Actions artifact retention period
         env:
@@ -44,7 +70,7 @@ jobs:
         run: |
           pdf="${ROOT_FILE%.tex}.pdf"
           tag="build-${SHA::7}"
-          notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${IMAGE}."
+          notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${TEXLIVE}."
           if gh release view "$tag" > /dev/null 2>&1; then
             # Rebuild of the same commit (e.g. with another TeX Live version)
             gh release upload "$tag" "$pdf" --clobber

@@ -1,0 +1,5 @@
+# TeX Live packages to install (tlmgr package names); `#` starts a comment.
+# A failed build names any missing package in its job summary.
+latex-bin
+latexmk
+xetex
