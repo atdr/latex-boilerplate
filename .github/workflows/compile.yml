@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Set up Git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Compile LaTeX document
         env:
           VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
@@ -44,17 +44,20 @@ jobs:
         run: |
           pdf="${ROOT_FILE%.tex}.pdf"
           tag="build-${SHA::7}"
+          notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${IMAGE}."
           if gh release view "$tag" > /dev/null 2>&1; then
+            # Rebuild of the same commit (e.g. with another TeX Live version)
             gh release upload "$tag" "$pdf" --clobber
+            gh release edit "$tag" --notes "$notes"
           else
             gh release create "$tag" "$pdf" \
               --target "$SHA" \
               --title "Build ${SHA::7} ($(git log -1 --format=%cs "$SHA"))" \
-              --notes "Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${IMAGE}."
+              --notes "$notes"
           fi
       - name: Upload logs on failure
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: run-log
           path: "*.log"
