@@ -40,9 +40,10 @@ jobs:
           if [ "$VERSION" = latest ]; then
             echo "TEXLIVE=TeX Live (latest)" >> "$GITHUB_ENV"
           else
-            # Final, frozen state of that year's release
+            # Final, frozen state of that year's release (plain HTTP, as older
+            # installers cannot download over HTTPS)
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "repository=https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
+            echo "repository=http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
             echo "TEXLIVE=TeX Live $VERSION" >> "$GITHUB_ENV"
           fi
       - name: Install TeX Live
