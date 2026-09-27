@@ -103,7 +103,10 @@ jobs:
       - name: Compile LaTeX document
         run: .github/scripts/compile.sh
       - name: Commit package list
-        # Only reached if the document compiled with exactly the listed packages
+        # Only reached if the document compiled with exactly the listed packages.
+        # A run with another TeX Live version than TEXLIVE_VERSION does not
+        # commit, so the list always matches TEXLIVE_VERSION.
+        if: ${{ !inputs.texlive_version || inputs.texlive_version == env.TEXLIVE_VERSION }}
         run: |
           git add texlive-packages.txt
           git diff --cached --quiet && exit 0
