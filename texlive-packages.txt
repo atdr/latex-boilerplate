@@ -5,7 +5,7 @@ dvipdfmx
 fontname
 glyphlist
 kpathsea
-l3kernel
 latex
 latexmk
+lm
 xetex
