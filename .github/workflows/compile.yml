@@ -3,10 +3,18 @@ name: Build LaTeX document
 on:
   push:
   workflow_dispatch:
+    inputs:
+      texlive_version:
+        description: TeX Live version (e.g. 2017), overriding TEXLIVE_VERSION below
+        required: false
 
 env:
   # Root .tex file to compile (Overleaf projects often use a name other than main.tex)
   ROOT_FILE: main.tex
+  # latexmk engine flag: -pdf (pdfLaTeX, Overleaf's default), -xelatex or -lualatex
+  ENGINE: -xelatex
+  # TeX Live release year (2013 onwards), or latest
+  TEXLIVE_VERSION: latest
 
 jobs:
   build_latex:
@@ -21,11 +29,13 @@ jobs:
       - name: Set up Git repository
         uses: actions/checkout@v4
       - name: Compile LaTeX document
-        uses: xu-cheng/latex-action@v4
-        with:
-          root_file: ${{ env.ROOT_FILE }}
-          # .latexmkrc selects XeLaTeX, but latexmk's command-line -pdf flag would override it
-          latexmk_use_xelatex: true
+        env:
+          VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
+        run: |
+          if [ "$VERSION" = latest ]; then image=texlive/texlive:latest; else image="texlive/texlive:TL${VERSION}-historic"; fi
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker run --rm -v "$PWD:/workdir" -w /workdir "$image" \
+            latexmk "$ENGINE" -file-line-error -interaction=nonstopmode "$ROOT_FILE"
       - name: Publish PDF as release
         # Releases are not subject to the Actions artifact retention period
         env:
@@ -40,7 +50,7 @@ jobs:
             gh release create "$tag" "$pdf" \
               --target "$SHA" \
               --title "Build ${SHA::7} ($(git log -1 --format=%cs "$SHA"))" \
-              --notes "Compiled from ${GITHUB_REF_NAME} at ${SHA}."
+              --notes "Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${IMAGE}."
           fi
       - name: Upload logs on failure
         if: ${{ failure() }}
