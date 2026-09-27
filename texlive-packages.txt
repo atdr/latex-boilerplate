@@ -8,5 +8,4 @@ kpathsea
 l3kernel
 latex
 latexmk
-lm
 xetex
