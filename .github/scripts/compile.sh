@@ -9,6 +9,8 @@ resolve=false
 [ "${1-}" = --resolve ] && resolve=true
 log="${ROOT_FILE%.tex}.log"
 summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+# Stop TeX wrapping log lines at 79 characters, so each error is on one line
+export max_print_line=100000
 
 # Files TeX reported as missing in the log (a font name without an extension
 # comes from XeTeX/LuaTeX, which look fonts up by name)
@@ -16,8 +18,8 @@ missing_files() {
   sed -nE \
     -e "s/.*LaTeX Error: File \`([^']+)' not found.*/\\1/p" \
     -e "s/.*I can't find file \`([^']+)'.*/\\1/p" \
-    -e 's/.*Font \\[^=]+=\[([^]]+)\].* not loadable.*/\1/p' \
-    -e 's/.*Font \\[^=]+=([^ :"]+) .* not loadable: Metric.*/\1.tfm/p' \
+    -e 's/.*Font \\?[^= ]+=\[([^]]+)\].* not loadable.*/\1/p' \
+    -e 's/.*Font \\?[^= ]+=([^ :"[]+) .* not loadable: Metric.*/\1.tfm/p' \
     "$log" 2>/dev/null | sort -u
 }
 
@@ -45,10 +47,16 @@ while true; do
       echo "No TeX Live package provides \`$file\`." >> "$summary"
       exit 1
     fi
-    echo "::error::$file is missing; it is in the TeX Live package $package"
-    echo "\`$file\` is missing; add \`$package\` to \`texlive-packages.txt\`." >> "$summary"
+    if $resolve; then
+      echo "::notice::$file is missing; installing the TeX Live package $package"
+    else
+      echo "::error::$file is missing; it is in the TeX Live package $package"
+      echo "\`$file\` is missing; add \`$package\` to \`texlive-packages.txt\`." >> "$summary"
+    fi
     packages+=("$package")
   done
+
+  mapfile -t packages < <(printf '%s\n' "${packages[@]}" | sort -u)
 
   if ! $resolve; then
     echo "To find every missing package, run this workflow manually with \"Resolve missing packages\" ticked." >> "$summary"
