@@ -1,0 +1,32 @@
+name: Set up TeX Live
+description: Installs the packages in texlive-packages.txt from the given TeX Live release, cached between runs
+
+inputs:
+  texlive_version:
+    description: TeX Live release year (e.g. 2017), or latest
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Select TeX Live release
+      id: texlive
+      shell: bash
+      env:
+        VERSION: ${{ inputs.texlive_version }}
+      run: |
+        if [ "$VERSION" = latest ]; then
+          echo "TEXLIVE=TeX Live (latest)" >> "$GITHUB_ENV"
+        else
+          # Final, frozen state of that year's release (plain HTTP, as older
+          # installers cannot download over HTTPS)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "repository=http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
+          echo "TEXLIVE=TeX Live $VERSION" >> "$GITHUB_ENV"
+        fi
+    - name: Install TeX Live
+      uses: zauguin/install-texlive@v4
+      with:
+        package_file: texlive-packages.txt
+        texlive_version: ${{ steps.texlive.outputs.version }}
+        repository: ${{ steps.texlive.outputs.repository }}

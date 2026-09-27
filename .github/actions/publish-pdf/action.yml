@@ -1,0 +1,38 @@
+name: Publish PDF
+description: Publishes the compiled PDF as a release on the default branch, or uploads it to the workflow run on other branches
+
+runs:
+  using: composite
+  steps:
+    - name: Publish PDF as release
+      # Releases are not subject to the Actions artifact retention period
+      if: ${{ github.ref_name == github.event.repository.default_branch }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SHA: ${{ github.sha }}
+      run: |
+        pdf="${ROOT_FILE%.tex}.pdf"
+        tag="build-${SHA::7}"
+        notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${TEXLIVE}."
+        if gh release view "$tag" > /dev/null 2>&1; then
+          # Rebuild of the same commit (e.g. with another TeX Live version)
+          gh release upload "$tag" "$pdf" --clobber
+          gh release edit "$tag" --notes "$notes"
+        else
+          gh release create "$tag" "$pdf" \
+            --target "$SHA" \
+            --title "Build ${SHA::7} ($(git log -1 --format=%cs "$SHA"))" \
+            --notes "$notes"
+        fi
+    - name: Name PDF
+      if: ${{ github.ref_name != github.event.repository.default_branch }}
+      shell: bash
+      run: echo "PDF=${ROOT_FILE%.tex}.pdf" >> "$GITHUB_ENV"
+    - name: Upload PDF to workflow run
+      # Other branches keep the PDF only for the artifact retention period
+      if: ${{ github.ref_name != github.event.repository.default_branch }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: pdf
+        path: ${{ env.PDF }}

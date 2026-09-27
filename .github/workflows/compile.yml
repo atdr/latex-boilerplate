@@ -20,108 +20,99 @@ env:
   # TeX Live release year (e.g. 2017), or latest
   TEXLIVE_VERSION: latest
 
+# Builds with only the packages in texlive-packages.txt. If that file is
+# missing, the build is missing a TeX Live package, or a manual run asks for
+# it, regenerates the list from a full TeX Live install, builds again with the
+# new list and commits it.
 jobs:
-  list_packages:
-    # Slow (downloads all of TeX Live, ~2 min), so only run on request
-    if: ${{ inputs.update_packages }}
+  build_latex:
 
     runs-on: ubuntu-latest
+
+    # Needed to create tags and releases
+    permissions:
+      contents: write
+
+    outputs:
+      update_packages: ${{ steps.check.outputs.update_packages || steps.compile.outputs.missing_packages }}
 
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v7
-      - name: List packages the document uses
+      - name: Check package list
+        id: check
         env:
-          VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
+          UPDATE: ${{ inputs.update_packages }}
         run: |
-          if [ "$VERSION" = latest ]; then tag=latest; else tag="TL${VERSION}-historic"; fi
-          docker run --rm -v "$PWD:/workdir" -w /workdir -e ROOT_FILE -e ENGINE \
-            "texlive/texlive:$tag" .github/scripts/list-packages.sh
-      - name: Upload package list
+          if [ "$UPDATE" = true ] || [ ! -f texlive-packages.txt ]; then
+            echo "update_packages=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up TeX Live
+        if: ${{ !steps.check.outputs.update_packages }}
+        uses: ./.github/actions/setup-texlive
+        with:
+          texlive_version: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
+      - name: Compile LaTeX document
+        id: compile
+        if: ${{ !steps.check.outputs.update_packages }}
+        # A missing package is handled by the update_packages job
+        continue-on-error: true
+        run: .github/scripts/compile.sh
+      - name: Fail on other errors
+        if: ${{ steps.compile.outcome == 'failure' && !steps.compile.outputs.missing_packages }}
+        run: exit 1
+      - name: Publish PDF
+        if: ${{ steps.compile.outcome == 'success' }}
+        uses: ./.github/actions/publish-pdf
+      - name: Upload logs on failure
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v7
         with:
-          name: texlive-packages
-          path: texlive-packages.txt
+          name: run-log
+          path: "*.log"
 
-  build_latex:
-    # Also runs when list_packages is skipped
-    needs: list_packages
-    if: ${{ !failure() && !cancelled() }}
+  update_packages:
+    needs: build_latex
+    if: ${{ needs.build_latex.outputs.update_packages }}
 
     runs-on: ubuntu-latest
 
-    # Needed to create tags and releases, and to commit the package list
+    # Needed to commit the package list, and to create tags and releases
     permissions:
       contents: write
 
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v7
-      - name: Use updated package list
-        if: ${{ inputs.update_packages }}
-        uses: actions/download-artifact@v7
-        with:
-          name: texlive-packages
-      - name: Select TeX Live release
-        id: texlive
+      - name: List packages the document uses
+        # Downloads all of TeX Live (~2 min)
         env:
           VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
         run: |
-          echo "PDF=${ROOT_FILE%.tex}.pdf" >> "$GITHUB_ENV"
-          if [ "$VERSION" = latest ]; then
-            echo "TEXLIVE=TeX Live (latest)" >> "$GITHUB_ENV"
-          else
-            # Final, frozen state of that year's release (plain HTTP, as older
-            # installers cannot download over HTTPS)
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "repository=http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
-            echo "TEXLIVE=TeX Live $VERSION" >> "$GITHUB_ENV"
-          fi
-      - name: Install TeX Live
-        # Installs only the listed packages, and caches them between runs
-        uses: zauguin/install-texlive@v4
+          if [ "$VERSION" = latest ]; then tag=latest; else tag="TL${VERSION}-historic"; fi
+          docker run --rm -v "$PWD:/workdir" -w /workdir -e ROOT_FILE -e ENGINE \
+            "texlive/texlive:$tag" .github/scripts/list-packages.sh
+          # Remove the full build's outputs (owned by the container's root user),
+          # so the next build cannot reuse them
+          sudo chown -R "$(id -u):$(id -g)" .
+          git clean -fdx -e texlive-packages.txt
+      - name: Set up TeX Live
+        uses: ./.github/actions/setup-texlive
         with:
-          package_file: texlive-packages.txt
-          texlive_version: ${{ steps.texlive.outputs.version }}
-          repository: ${{ steps.texlive.outputs.repository }}
+          texlive_version: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
       - name: Compile LaTeX document
         run: .github/scripts/compile.sh
-      - name: Commit updated package list
+      - name: Commit package list
         # Only reached if the document compiled with exactly the listed packages
-        if: ${{ inputs.update_packages }}
         run: |
-          git diff --quiet texlive-packages.txt && exit 0
+          git add texlive-packages.txt
+          git diff --cached --quiet && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update TeX Live package list" texlive-packages.txt
+          git commit -m "Update TeX Live package list"
           git push origin "HEAD:${GITHUB_REF_NAME}"
-      - name: Publish PDF as release
-        # Only the default branch gets releases, which are not subject to the
-        # Actions artifact retention period
-        if: ${{ github.ref_name == github.event.repository.default_branch }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.sha }}
-        run: |
-          tag="build-${SHA::7}"
-          notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${TEXLIVE}."
-          if gh release view "$tag" > /dev/null 2>&1; then
-            # Rebuild of the same commit (e.g. with another TeX Live version)
-            gh release upload "$tag" "$PDF" --clobber
-            gh release edit "$tag" --notes "$notes"
-          else
-            gh release create "$tag" "$PDF" \
-              --target "$SHA" \
-              --title "Build ${SHA::7} ($(git log -1 --format=%cs "$SHA"))" \
-              --notes "$notes"
-          fi
-      - name: Upload PDF to workflow run
-        # Other branches keep the PDF only for the artifact retention period
-        if: ${{ github.ref_name != github.event.repository.default_branch }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: pdf
-          path: ${{ env.PDF }}
+      - name: Publish PDF
+        uses: ./.github/actions/publish-pdf
       - name: Upload logs on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7

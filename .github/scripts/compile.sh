@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Compiles ROOT_FILE with latexmk. When TeX cannot find a file, looks up the
-# TeX Live package that provides it and reports it in the job summary.
+# TeX Live package that provides it, reports it in the job summary and sets
+# the step output missing_packages=true.
 set -uo pipefail
 
 log="${ROOT_FILE%.tex}.log"
@@ -31,18 +32,16 @@ provider() {
 
 latexmk "$ENGINE" -file-line-error -interaction=nonstopmode "$ROOT_FILE" && exit 0
 
-files=$(missing_files)
-for file in $files; do
+for file in $(missing_files); do
   package=$(provider "$file")
   if [ -n "$package" ]; then
-    echo "::error::$file is missing; it is in the TeX Live package $package"
-    echo "\`$file\` is missing; add \`$package\` to \`texlive-packages.txt\`." >> "$summary"
+    echo "::warning::$file is missing; it is in the TeX Live package $package"
+    echo "\`$file\` is missing; it is in the TeX Live package \`$package\`." >> "$summary"
+    # Tells the workflow to regenerate texlive-packages.txt
+    echo "missing_packages=true" >> "${GITHUB_OUTPUT:-/dev/null}"
   else
     echo "::error::No TeX Live package provides $file"
     echo "No TeX Live package provides \`$file\`." >> "$summary"
   fi
 done
-if [ -n "$files" ]; then
-  echo "TeX stops at the first missing file, so there may be more. To regenerate the whole list, run this workflow manually with \"Update package list\" ticked." >> "$summary"
-fi
 exit 1
