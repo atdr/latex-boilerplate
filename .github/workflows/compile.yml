@@ -7,8 +7,8 @@ on:
       texlive_version:
         description: TeX Live version (e.g. 2017), overriding TEXLIVE_VERSION below
         required: false
-      resolve_packages:
-        description: Resolve missing packages and commit them to texlive-packages.txt
+      update_packages:
+        description: Update package list (regenerate texlive-packages.txt using a full TeX Live install)
         type: boolean
         default: false
 
@@ -21,22 +21,53 @@ env:
   TEXLIVE_VERSION: latest
 
 jobs:
-  build_latex:
+  list_packages:
+    # Slow (downloads all of TeX Live, ~2 min), so only run on request
+    if: ${{ inputs.update_packages }}
 
     runs-on: ubuntu-latest
 
-    # Needed to create tags and releases, and to commit resolved packages
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v7
+      - name: List packages the document uses
+        env:
+          VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
+        run: |
+          if [ "$VERSION" = latest ]; then tag=latest; else tag="TL${VERSION}-historic"; fi
+          docker run --rm -v "$PWD:/workdir" -w /workdir -e ROOT_FILE -e ENGINE \
+            "texlive/texlive:$tag" .github/scripts/list-packages.sh
+      - name: Upload package list
+        uses: actions/upload-artifact@v7
+        with:
+          name: texlive-packages
+          path: texlive-packages.txt
+
+  build_latex:
+    # Also runs when list_packages is skipped
+    needs: list_packages
+    if: ${{ !failure() && !cancelled() }}
+
+    runs-on: ubuntu-latest
+
+    # Needed to create tags and releases, and to commit the package list
     permissions:
       contents: write
 
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v7
+      - name: Use updated package list
+        if: ${{ inputs.update_packages }}
+        uses: actions/download-artifact@v7
+        with:
+          name: texlive-packages
       - name: Select TeX Live release
         id: texlive
         env:
           VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
         run: |
+          echo "PDF=${ROOT_FILE%.tex}.pdf" >> "$GITHUB_ENV"
           if [ "$VERSION" = latest ]; then
             echo "TEXLIVE=TeX Live (latest)" >> "$GITHUB_ENV"
           else
@@ -54,34 +85,43 @@ jobs:
           texlive_version: ${{ steps.texlive.outputs.version }}
           repository: ${{ steps.texlive.outputs.repository }}
       - name: Compile LaTeX document
-        run: .github/scripts/compile.sh ${{ inputs.resolve_packages && '--resolve' || '' }}
-      - name: Commit resolved packages
-        if: ${{ inputs.resolve_packages }}
+        run: .github/scripts/compile.sh
+      - name: Commit updated package list
+        # Only reached if the document compiled with exactly the listed packages
+        if: ${{ inputs.update_packages }}
         run: |
           git diff --quiet texlive-packages.txt && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Add resolved TeX Live packages" texlive-packages.txt
+          git commit -m "Update TeX Live package list" texlive-packages.txt
           git push origin "HEAD:${GITHUB_REF_NAME}"
       - name: Publish PDF as release
-        # Releases are not subject to the Actions artifact retention period
+        # Only the default branch gets releases, which are not subject to the
+        # Actions artifact retention period
+        if: ${{ github.ref_name == github.event.repository.default_branch }}
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.sha }}
         run: |
-          pdf="${ROOT_FILE%.tex}.pdf"
           tag="build-${SHA::7}"
           notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${TEXLIVE}."
           if gh release view "$tag" > /dev/null 2>&1; then
             # Rebuild of the same commit (e.g. with another TeX Live version)
-            gh release upload "$tag" "$pdf" --clobber
+            gh release upload "$tag" "$PDF" --clobber
             gh release edit "$tag" --notes "$notes"
           else
-            gh release create "$tag" "$pdf" \
+            gh release create "$tag" "$PDF" \
               --target "$SHA" \
               --title "Build ${SHA::7} ($(git log -1 --format=%cs "$SHA"))" \
               --notes "$notes"
           fi
+      - name: Upload PDF to workflow run
+        # Other branches keep the PDF only for the artifact retention period
+        if: ${{ github.ref_name != github.event.repository.default_branch }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: pdf
+          path: ${{ env.PDF }}
       - name: Upload logs on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7

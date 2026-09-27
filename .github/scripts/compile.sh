@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 # Compiles ROOT_FILE with latexmk. When TeX cannot find a file, looks up the
 # TeX Live package that provides it and reports it in the job summary.
-# With --resolve, also installs that package, adds it to texlive-packages.txt
-# and compiles again, until the document compiles or no provider is found.
 set -uo pipefail
 
-resolve=false
-[ "${1-}" = --resolve ] && resolve=true
 log="${ROOT_FILE%.tex}.log"
 summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
 # Stop TeX wrapping log lines at 79 characters, so each error is on one line
@@ -33,44 +29,20 @@ provider() {
     }'
 }
 
-added=()
-while true; do
-  latexmk "$ENGINE" -file-line-error -interaction=nonstopmode "$ROOT_FILE" && break
+latexmk "$ENGINE" -file-line-error -interaction=nonstopmode "$ROOT_FILE" && exit 0
 
-  mapfile -t files < <(missing_files)
-  [ ${#files[@]} -eq 0 ] && exit 1
-  packages=()
-  for file in "${files[@]}"; do
-    package=$(provider "$file")
-    if [ -z "$package" ]; then
-      echo "::error::No TeX Live package provides $file"
-      echo "No TeX Live package provides \`$file\`." >> "$summary"
-      exit 1
-    fi
-    if $resolve; then
-      echo "::notice::$file is missing; installing the TeX Live package $package"
-    else
-      echo "::error::$file is missing; it is in the TeX Live package $package"
-      echo "\`$file\` is missing; add \`$package\` to \`texlive-packages.txt\`." >> "$summary"
-    fi
-    packages+=("$package")
-  done
-
-  mapfile -t packages < <(printf '%s\n' "${packages[@]}" | sort -u)
-
-  if ! $resolve; then
-    echo "To find every missing package, run this workflow manually with \"Resolve missing packages\" ticked." >> "$summary"
-    exit 1
+files=$(missing_files)
+for file in $files; do
+  package=$(provider "$file")
+  if [ -n "$package" ]; then
+    echo "::error::$file is missing; it is in the TeX Live package $package"
+    echo "\`$file\` is missing; add \`$package\` to \`texlive-packages.txt\`." >> "$summary"
+  else
+    echo "::error::No TeX Live package provides $file"
+    echo "No TeX Live package provides \`$file\`." >> "$summary"
   fi
-  for package in "${packages[@]}"; do
-    # Stop if installing a package did not make its file available
-    if [[ " ${added[*]-} " == *" $package "* ]]; then exit 1; fi
-  done
-  tlmgr install "${packages[@]}" || exit 1
-  printf '%s\n' "${packages[@]}" >> texlive-packages.txt
-  added+=("${packages[@]}")
 done
-
-if [ ${#added[@]} -gt 0 ]; then
-  echo "Added to \`texlive-packages.txt\`: ${added[*]}" >> "$summary"
+if [ -n "$files" ]; then
+  echo "TeX stops at the first missing file, so there may be more. To regenerate the whole list, run this workflow manually with \"Update package list\" ticked." >> "$summary"
 fi
+exit 1
