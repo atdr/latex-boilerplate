@@ -20,13 +20,16 @@ missing_files() {
     "$log" 2>/dev/null | sort -u
 }
 
-# TeX Live package containing that file (matching with or without extension)
+# TeX Live package containing that file. The name may include a directory
+# (foo/bar.sty) and may lack an extension (a font name from XeTeX/LuaTeX).
 provider() {
-  tlmgr search --global --file "/$1" 2>/dev/null | awk -v f="$1" '
+  tlmgr search --global --file "/$1" 2>/dev/null | awk -v f="/$1" '
+    function ends_with(s, t) { return length(s) >= length(t) && substr(s, length(s) - length(t) + 1) == t }
     /^[^ \t].*:$/ { pkg = substr($0, 1, length($0) - 1); next }
     {
-      n = split($1, path, "/")
-      if (path[n] == f || index(path[n], f ".") == 1) { print pkg; exit }
+      path = "/" $1
+      bare = path; sub(/\.[^.\/]*$/, "", bare)
+      if (ends_with(path, f) || ends_with(bare, f)) { print pkg; exit }
     }'
 }
 

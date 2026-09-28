@@ -117,6 +117,10 @@ These already caused failures; keep them in mind when changing the scripts:
 - **Leftover files from the full build:** its outputs are owned by root, and
   latexmk could reuse its PDF, so `update_packages` changes their owner and
   runs `git clean` before verifying the new list.
+- **Token exposure:** checkouts use `persist-credentials: false`, so the
+  token is not on disk while TeX and the scripts run. Only the commit step
+  (which pushes with `GH_TOKEN`) and the publish step receive it; keep new
+  steps that way.
 - **Failure handling in `build_latex`:** its compile step uses
   `continue-on-error` so that a missing package can hand over to
   `update_packages`. Any other failure is re-raised by the "Fail on other

@@ -29,8 +29,9 @@ fls="${ROOT_FILE%.tex}.fls"
   # Formats, which TeX Live builds at install time rather than shipping
   { cat "$fls"; tr ' ' '\n' < kpathsea.log; } | sed -nE 's|^(INPUT )?/.*/([^/]+)\.fmt$|format \2|p'
   # Programs latexmk ran (rule names such as xelatex, "biber main"), and latexmk
-  # (latexmk prints its own messages to stderr)
-  cat latexmk.out kpathsea.log | sed -nE "s/^Latexmk: Run number [0-9]+ of rule '([^ ']+).*/bin\/$arch\/\1/p"
+  # (latexmk prints its own messages to stderr, with or without a "Latexmk: "
+  # prefix depending on its version)
+  cat latexmk.out kpathsea.log | sed -nE "s/^(Latexmk: )?Run number [0-9]+ of rule '([^ ']+).*/bin\/$arch\/\2/p"
   echo "bin/$arch/latexmk"
 } | sort -u > used.txt
 
