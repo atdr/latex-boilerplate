@@ -1,5 +1,7 @@
 name: Set up TeX Live
-description: Installs the packages in texlive-packages.txt from the given TeX Live release, cached between runs
+description: >-
+  Installs the packages in texlive-packages.txt from the given TeX Live
+  release, cached between runs
 
 inputs:
   texlive_version:
@@ -21,7 +23,8 @@ runs:
           # Final, frozen state of that year's release (plain HTTP, as older
           # installers cannot download over HTTPS)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "repository=http://ftp.math.utah.edu/pub/tex/historic/systems/texlive/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
+          historic=http://ftp.math.utah.edu/pub/tex/historic/systems/texlive
+          echo "repository=$historic/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
           echo "TEXLIVE=TeX Live $VERSION" >> "$GITHUB_ENV"
         fi
     - name: Install TeX Live

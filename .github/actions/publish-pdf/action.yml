@@ -1,5 +1,7 @@
 name: Publish PDF
-description: Publishes the compiled PDF as a release on the default branch, or uploads it to the workflow run on other branches
+description: >-
+  Publishes the compiled PDF as a release on the default branch, or uploads it
+  to the workflow run on other branches
 
 runs:
   using: composite

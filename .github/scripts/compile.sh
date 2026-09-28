@@ -24,7 +24,9 @@ missing_files() {
 # (foo/bar.sty) and may lack an extension (a font name from XeTeX/LuaTeX).
 provider() {
   tlmgr search --global --file "/$1" 2>/dev/null | awk -v f="/$1" '
-    function ends_with(s, t) { return length(s) >= length(t) && substr(s, length(s) - length(t) + 1) == t }
+    function ends_with(s, t) {
+      return length(s) >= length(t) && substr(s, length(s) - length(t) + 1) == t
+    }
     /^[^ \t].*:$/ { pkg = substr($0, 1, length($0) - 1); next }
     {
       path = "/" $1
@@ -33,13 +35,15 @@ provider() {
     }'
 }
 
-latexmk "$ENGINE" -file-line-error -interaction=nonstopmode "$ROOT_FILE" && exit 0
+latexmk "$ENGINE" -file-line-error -interaction=nonstopmode "$ROOT_FILE" \
+  && exit 0
 
 for file in $(missing_files); do
   package=$(provider "$file")
   if [ -n "$package" ]; then
     echo "::warning::$file is missing; it is in the TeX Live package $package"
-    echo "\`$file\` is missing; it is in the TeX Live package \`$package\`." >> "$summary"
+    echo "\`$file\` is missing; it is in the TeX Live package" \
+      "\`$package\`." >> "$summary"
     # Tells the workflow to regenerate texlive-packages.txt
     echo "missing_packages=true" >> "${GITHUB_OUTPUT:-/dev/null}"
   else

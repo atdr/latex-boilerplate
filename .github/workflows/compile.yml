@@ -5,17 +5,21 @@ on:
   workflow_dispatch:
     inputs:
       texlive_version:
-        description: TeX Live version (e.g. 2017), overriding TEXLIVE_VERSION below
+        description: >-
+          TeX Live version (e.g. 2017), overriding TEXLIVE_VERSION below
         required: false
       update_packages:
-        description: Update package list (regenerate texlive-packages.txt using a full TeX Live install)
+        description: >-
+          Update package list (regenerate texlive-packages.txt using a full
+          TeX Live install)
         type: boolean
         default: false
 
 env:
-  # Root .tex file to compile (Overleaf projects often use a name other than main.tex)
+  # Root .tex file to compile (Overleaf projects often use another name)
   ROOT_FILE: main.tex
-  # latexmk engine flag: -pdf (pdfLaTeX, Overleaf's default), -xelatex or -lualatex
+  # latexmk engine flag: -pdf (pdfLaTeX, Overleaf's default), -xelatex or
+  # -lualatex
   ENGINE: -xelatex
   # TeX Live release year (e.g. 2017), or latest
   TEXLIVE_VERSION: latest
@@ -34,7 +38,9 @@ jobs:
       contents: write
 
     outputs:
-      update_packages: ${{ steps.check.outputs.update_packages || steps.compile.outputs.missing_packages }}
+      update_packages: >-
+        ${{ steps.check.outputs.update_packages
+        || steps.compile.outputs.missing_packages }}
 
     steps:
       - name: Set up Git repository
@@ -62,7 +68,9 @@ jobs:
         continue-on-error: true
         run: .github/scripts/compile.sh
       - name: Fail on other errors
-        if: ${{ steps.compile.outcome == 'failure' && !steps.compile.outputs.missing_packages }}
+        if: >-
+          ${{ steps.compile.outcome == 'failure'
+          && !steps.compile.outputs.missing_packages }}
         run: exit 1
       - name: Publish PDF
         if: ${{ steps.compile.outcome == 'success' }}
@@ -96,11 +104,13 @@ jobs:
         env:
           VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
         run: |
-          if [ "$VERSION" = latest ]; then tag=latest; else tag="TL${VERSION}-historic"; fi
-          docker run --rm -v "$PWD:/workdir" -w /workdir -e ROOT_FILE -e ENGINE \
-            "texlive/texlive:$tag" .github/scripts/list-packages.sh
-          # Remove the full build's outputs (owned by the container's root user),
-          # so the next build cannot reuse them
+          tag=latest
+          [ "$VERSION" = latest ] || tag="TL${VERSION}-historic"
+          docker run --rm -v "$PWD:/workdir" -w /workdir \
+            -e ROOT_FILE -e ENGINE "texlive/texlive:$tag" \
+            .github/scripts/list-packages.sh
+          # Remove the full build's outputs (owned by the container's root
+          # user), so the next build cannot reuse them
           sudo chown -R "$(id -u):$(id -g)" .
           git clean -fdx -e texlive-packages.txt
       - name: Set up TeX Live
@@ -110,19 +120,23 @@ jobs:
       - name: Compile LaTeX document
         run: .github/scripts/compile.sh
       - name: Commit package list
-        # Only reached if the document compiled with exactly the listed packages.
-        # A run with another TeX Live version than TEXLIVE_VERSION does not
-        # commit, so the list always matches TEXLIVE_VERSION.
-        if: ${{ !inputs.texlive_version || inputs.texlive_version == env.TEXLIVE_VERSION }}
+        # Only reached if the document compiled with exactly the listed
+        # packages. A run with another TeX Live version than TEXLIVE_VERSION
+        # does not commit, so the list always matches TEXLIVE_VERSION.
+        if: >-
+          ${{ !inputs.texlive_version
+          || inputs.texlive_version == env.TEXLIVE_VERSION }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           git add texlive-packages.txt
           git diff --cached --quiet && exit 0
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Update TeX Live package list"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
+          bot='github-actions[bot]'
+          git config user.name "$bot"
+          git config user.email "41898282+$bot@users.noreply.github.com"
+          git commit -m "chore: update TeX Live package list"
+          remote="https://x-access-token:${GH_TOKEN}@github.com"
+          git push "$remote/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
       - name: Publish PDF
         uses: ./.github/actions/publish-pdf
       - name: Upload logs on failure
