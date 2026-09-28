@@ -104,8 +104,12 @@ jobs:
         env:
           VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
         run: |
+          # A past release has a frozen image; the current one is latest
           tag=latest
-          [ "$VERSION" = latest ] || tag="TL${VERSION}-historic"
+          if [ "$VERSION" != latest ] && docker manifest inspect \
+            "texlive/texlive:TL${VERSION}-historic" > /dev/null 2>&1; then
+            tag="TL${VERSION}-historic"
+          fi
           docker run --rm -v "$PWD:/workdir" -w /workdir \
             -e ROOT_FILE -e ENGINE "texlive/texlive:$tag" \
             .github/scripts/list-packages.sh
@@ -122,10 +126,12 @@ jobs:
       - name: Commit package list
         # Only reached if the document compiled with exactly the listed
         # packages. A run with another TeX Live version than TEXLIVE_VERSION
-        # does not commit, so the list always matches TEXLIVE_VERSION.
+        # does not commit, so the list always matches TEXLIVE_VERSION; nor
+        # does a run for a tag, which has no branch to commit to.
         if: >-
-          ${{ !inputs.texlive_version
-          || inputs.texlive_version == env.TEXLIVE_VERSION }}
+          ${{ github.ref_type == 'branch'
+          && (!inputs.texlive_version
+          || inputs.texlive_version == env.TEXLIVE_VERSION) }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

@@ -14,7 +14,7 @@ runs:
         GH_TOKEN: ${{ github.token }}
         SHA: ${{ github.sha }}
       run: |
-        pdf="${ROOT_FILE%.tex}.pdf"
+        pdf="$(basename "$ROOT_FILE" .tex).pdf"
         tag="build-${SHA::7}"
         notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${TEXLIVE}."
         if gh release view "$tag" > /dev/null 2>&1; then
@@ -30,7 +30,7 @@ runs:
     - name: Name PDF
       if: ${{ github.ref_name != github.event.repository.default_branch }}
       shell: bash
-      run: echo "PDF=${ROOT_FILE%.tex}.pdf" >> "$GITHUB_ENV"
+      run: echo "PDF=$(basename "$ROOT_FILE" .tex).pdf" >> "$GITHUB_ENV"
     - name: Upload PDF to workflow run
       # Other branches keep the PDF only for the artifact retention period
       if: ${{ github.ref_name != github.event.repository.default_branch }}
@@ -38,3 +38,4 @@ runs:
       with:
         name: pdf
         path: ${{ env.PDF }}
+        if-no-files-found: error

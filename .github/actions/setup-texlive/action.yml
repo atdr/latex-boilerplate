@@ -19,13 +19,17 @@ runs:
       run: |
         if [ "$VERSION" = latest ]; then
           echo "TEXLIVE=TeX Live (latest)" >> "$GITHUB_ENV"
-        else
-          # Final, frozen state of that year's release (plain HTTP, as older
-          # installers cannot download over HTTPS)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          historic=http://ftp.math.utah.edu/pub/tex/historic/systems/texlive
-          echo "repository=$historic/$VERSION/tlnet-final" >> "$GITHUB_OUTPUT"
-          echo "TEXLIVE=TeX Live $VERSION" >> "$GITHUB_ENV"
+          exit 0
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "TEXLIVE=TeX Live $VERSION" >> "$GITHUB_ENV"
+        # A past release installs from its final, frozen state (plain HTTP, as
+        # older installers cannot download over HTTPS). The current release
+        # has no such archive yet, so install-texlive picks a mirror for it.
+        historic=http://ftp.math.utah.edu/pub/tex/historic/systems/texlive
+        repository="$historic/$VERSION/tlnet-final"
+        if curl -sfIL "$repository/install-tl-unx.tar.gz" > /dev/null; then
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
         fi
     - name: Install TeX Live
       uses: zauguin/install-texlive@v4

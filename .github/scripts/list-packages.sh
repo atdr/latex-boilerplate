@@ -20,7 +20,7 @@ cat latexmk.out; grep -v '^kdebug:' kpathsea.log >&2 || true
 
 root=$(kpsewhich -var-value TEXMFROOT)
 arch=$(basename "$(kpsewhich -var-value SELFAUTOLOC)")
-fls="${ROOT_FILE%.tex}.fls"
+fls="$(basename "$ROOT_FILE" .tex).fls"
 
 {
   # Files read from the TeX Live tree, relative to its root

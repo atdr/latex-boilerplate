@@ -19,9 +19,9 @@ Boilerplate for a LaTeX document that GitHub Actions compiles to PDF on every pu
 
 At the top of `compile.yml`, under `env`:
 
-- `ROOT_FILE`: root `.tex` file.
+- `ROOT_FILE`: root `.tex` file. It may be in a subdirectory; latexmk still runs from the repository root, as Overleaf does, and writes its outputs (log, PDF) there.
 - `ENGINE`: latexmk engine flag: `-pdf` (pdfLaTeX, Overleaf's default), `-xelatex` or `-lualatex`. latexmk command-line flags override `.latexmkrc`, so this setting decides the engine.
-- `TEXLIVE_VERSION`: TeX Live release year (e.g. `2017`), or `latest`. Years before the current release install from the frozen `tlnet-final` archive on the Utah historic mirror.
+- `TEXLIVE_VERSION`: TeX Live release year (e.g. `2017`), or `latest`. A past year installs from its frozen `tlnet-final` archive on the Utah historic mirror (and the full-install job uses its `TL<year>-historic` image); the current year has neither yet, so it installs from the mirrors like `latest`.
 
 A manual run (Actions tab → Build LaTeX document → Run workflow) takes two optional inputs:
 
@@ -41,7 +41,7 @@ Each push or manual run starts two jobs in sequence:
 2. **`update_packages`** (only when flagged; about 2.5 min)
    - compiles in the full `texlive/texlive` image, where `list-packages.sh` rewrites `texlive-packages.txt`;
    - deletes that build's outputs, installs only the new list and compiles again, which verifies the list;
-   - commits `texlive-packages.txt` if it changed (not on runs with another TeX Live version), then publishes the PDF.
+   - commits `texlive-packages.txt` if it changed (not on runs with another TeX Live version, nor for a tag), then publishes the PDF.
 
 - **Publishing:** on the repository's default branch the PDF is attached to a release tagged `build-<short SHA>`, which does not expire. Rebuilding the same commit replaces the PDF and updates the notes. On other branches the PDF is uploaded as the `pdf` artifact of the run, which expires under the artifact retention policy. When a build fails, its `.log` files are uploaded as the `run-log` artifact.
 - **Failure messages:** when a file is missing, the job summary and annotations name the file and the package providing it (`tlmgr search --global --file`).

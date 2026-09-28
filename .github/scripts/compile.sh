@@ -4,7 +4,9 @@
 # the step output missing_packages=true.
 set -uo pipefail
 
-log="${ROOT_FILE%.tex}.log"
+# latexmk writes its outputs to the working directory, even for a root file
+# in a subdirectory
+log="$(basename "$ROOT_FILE" .tex).log"
 summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
 # Stop TeX wrapping log lines at 79 characters, so each error is on one line
 export max_print_line=100000
