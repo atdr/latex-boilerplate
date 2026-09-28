@@ -3,6 +3,14 @@ description: >-
   Publishes the compiled PDF as a release on the default branch, or uploads it
   to the workflow run on other branches
 
+inputs:
+  warning:
+    description: >-
+      Note added to the release (e.g. that the PDF compiled with errors);
+      empty for none
+    required: false
+    default: ""
+
 runs:
   using: composite
   steps:
@@ -13,10 +21,14 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         SHA: ${{ github.sha }}
+        WARNING: ${{ inputs.warning }}
       run: |
         pdf="$(basename "$ROOT_FILE" .tex).pdf"
         tag="build-${SHA::7}"
         notes="Compiled from ${GITHUB_REF_NAME} at ${SHA} using ${TEXLIVE}."
+        if [ -n "$WARNING" ]; then
+          notes="$notes"$'\n\n'"⚠️ $WARNING"
+        fi
         if gh release view "$tag" > /dev/null 2>&1; then
           # Rebuild of the same commit (e.g. with another TeX Live version)
           gh release upload "$tag" "$pdf" --clobber

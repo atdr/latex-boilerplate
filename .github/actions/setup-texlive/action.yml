@@ -37,3 +37,6 @@ runs:
         package_file: texlive-packages.txt
         texlive_version: ${{ steps.texlive.outputs.version }}
         repository: ${{ steps.texlive.outputs.repository }}
+    - name: Set up fonts
+      shell: bash
+      run: .github/scripts/setup-fonts.sh
