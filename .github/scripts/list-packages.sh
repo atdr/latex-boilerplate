@@ -4,6 +4,8 @@
 # and its tools read, every format loaded, and every program latexmk ran.
 set -uo pipefail
 
+.github/scripts/setup-fonts.sh
+
 # Compile once untraced, so that building any missing format (which reads
 # every installed language's hyphenation patterns) is not recorded
 latexmk "$ENGINE" -interaction=nonstopmode "$ROOT_FILE" > /dev/null 2>&1

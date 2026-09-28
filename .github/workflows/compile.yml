@@ -75,8 +75,12 @@ jobs:
       - name: Publish PDF
         if: ${{ steps.compile.outcome == 'success' }}
         uses: ./.github/actions/publish-pdf
+        with:
+          warning: >-
+            ${{ steps.compile.outputs.compiled_with_errors
+            && 'Compiled with errors; see the run-log artifact.' || '' }}
       - name: Upload logs on failure
-        if: ${{ failure() }}
+        if: ${{ failure() || steps.compile.outputs.compiled_with_errors }}
         uses: actions/upload-artifact@v7
         with:
           name: run-log
@@ -100,7 +104,9 @@ jobs:
           # publishing use it
           persist-credentials: false
       - name: List packages the document uses
-        # Downloads all of TeX Live (~2 min)
+        # Downloads all of TeX Live (~2 min); a generous timeout in case the
+        # compile hangs instead of erroring
+        timeout-minutes: 20
         env:
           VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
         run: |
@@ -122,6 +128,7 @@ jobs:
         with:
           texlive_version: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
       - name: Compile LaTeX document
+        id: compile
         run: .github/scripts/compile.sh
       - name: Commit package list
         # Only reached if the document compiled with exactly the listed
@@ -145,8 +152,12 @@ jobs:
           git push "$remote/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
       - name: Publish PDF
         uses: ./.github/actions/publish-pdf
+        with:
+          warning: >-
+            ${{ steps.compile.outputs.compiled_with_errors
+            && 'Compiled with errors; see the run-log artifact.' || '' }}
       - name: Upload logs on failure
-        if: ${{ failure() }}
+        if: ${{ failure() || steps.compile.outputs.compiled_with_errors }}
         uses: actions/upload-artifact@v7
         with:
           name: run-log
