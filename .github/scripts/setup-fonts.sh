@@ -11,7 +11,7 @@
 # Run after TeX Live is installed and on PATH. Needs apt; works both on the
 # runner (via sudo) and as root inside a container (e.g. the full TeX Live
 # image used to regenerate texlive-packages.txt).
-set -uo pipefail
+set -euo pipefail
 
 sudo=""
 [ "$(id -u)" -eq 0 ] || sudo=sudo
