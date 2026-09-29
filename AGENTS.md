@@ -20,6 +20,8 @@ In `.github/workflows/compile.yml`, under `with`:
 - `root_file`: root `.tex` file, relative to the repository root (it may be in a subdirectory).
 - `engine`: `-pdf` (pdfLaTeX, Overleaf's default), `-xelatex` or `-lualatex`.
 - `texlive_version`: TeX Live release year as a string (e.g. `"2017"`), or `latest`.
+- `lint` and `annotate_warnings`: report chktex findings (on their file and line) and warnings from the final LaTeX log (on the run) as annotations and in the job summary. They never fail the build.
+- `format_check` and `tex_fmt_version`: a separate `format` job fails when a `.tex`, `.cls` or `.sty` file is not formatted with tex-fmt; the PDF is still published. Keep `tex_fmt_version` equal to the `rev` of the hook in `.pre-commit-config.yaml` (without the `v`).
 
 After changing `engine`, `root_file` or `texlive_version`, run the workflow manually with "Update package list" ticked, since the list is only regenerated automatically when a file is missing.
 
@@ -27,7 +29,7 @@ A manual run (Actions tab → Build LaTeX document → Run workflow) can also bu
 
 ## Adapting an Overleaf project
 
-Copy `.github/` into the project (and `.latexmkrc` only if it uses XeLaTeX and has none of its own), set the three settings from the project's Overleaf settings (Menu → Settings: compiler, TeX Live version, main document), and push. With no `texlive-packages.txt` present, the first run generates and commits it.
+Copy `.github/` into the project (and `.latexmkrc` only if it uses XeLaTeX and has none of its own), set the three settings from the project's Overleaf settings (Menu → Settings: compiler, TeX Live version, main document), and push. Imported sources are unlikely to be tex-fmt formatted, so either run `pre-commit run --all-files` once and commit the result, or set `format_check: false`. With no `texlive-packages.txt` present, the first run generates and commits it.
 
 ## Updates
 

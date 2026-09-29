@@ -24,8 +24,12 @@ Set these under `with` in `.github/workflows/compile.yml`:
 | `root_file` | `main.tex` | Root `.tex` file, relative to the repository root |
 | `engine` | `-xelatex` | `-pdf` (pdfLaTeX), `-xelatex` or `-lualatex` |
 | `texlive_version` | `latest` | TeX Live release year, e.g. `"2017"` |
+| `lint` | `true` | Annotate chktex findings on the lines they refer to |
+| `annotate_warnings` | `true` | Annotate warnings from the LaTeX log, such as undefined references and overfull boxes |
+| `format_check` | `true` | Fail a separate `format` job when a file is not formatted with tex-fmt (the PDF is still published) |
+| `tex_fmt_version` | `"0.5.7"` | tex-fmt release for `format_check`; keep it equal to the hook's `rev` |
 
-After changing any of these, run the workflow manually (Actions tab → Build LaTeX document → Run workflow) with **Update package list** ticked. See [AGENTS.md](AGENTS.md) for details, including how to move an existing Overleaf project over.
+After changing `root_file`, `engine` or `texlive_version`, run the workflow manually (Actions tab → Build LaTeX document → Run workflow) with **Update package list** ticked. See [AGENTS.md](AGENTS.md) for details, including how to move an existing Overleaf project over.
 
 ## Building locally
 
