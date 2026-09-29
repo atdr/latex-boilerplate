@@ -1,6 +1,7 @@
 # LaTeX boilerplate
 
-[![Build LaTeX document](https://github.com/atdr/latex-boilerplate/actions/workflows/compile.yml/badge.svg)](https://github.com/atdr/latex-boilerplate/actions/workflows/compile.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/atdr/latex-boilerplate.svg?style=flat-square)](https://github.com/atdr/latex-boilerplate)
+[![Build](https://img.shields.io/github/actions/workflow/status/atdr/latex-boilerplate/compile.yml?branch=main&style=flat-square&label=build)](https://github.com/atdr/latex-boilerplate/actions/workflows/compile.yml)
 
 A starting point for a LaTeX document that GitHub Actions compiles to PDF on every push. The build runs in [`atdr/latex-build`](https://github.com/atdr/latex-build), a reusable workflow that installs only the TeX Live packages the document needs, at a TeX Live version you choose.
 
