@@ -34,3 +34,11 @@ jobs:
       texlive_version: latest
       texlive_version_override: ${{ inputs.texlive_version }}
       update_packages: ${{ inputs.update_packages || false }}
+      # Report chktex findings and LaTeX log warnings as annotations
+      lint: true
+      annotate_warnings: true
+      # Check formatting with tex-fmt in a separate job, which fails without
+      # holding back the PDF; keep the version equal to the hook's rev in
+      # .pre-commit-config.yaml
+      format_check: true
+      tex_fmt_version: "0.5.7"
