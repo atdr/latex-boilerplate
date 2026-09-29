@@ -30,7 +30,7 @@ Copy `.github/` into the project (and `.latexmkrc` only if it uses XeLaTeX and h
 
 ## Updates
 
-The workflow is pinned to an exact `atdr/latex-build` release (`@vX.Y.Z`). Dependabot opens a PR when a new one is out; the PR's build runs on its branch (the PDF is a run artifact there), and merging it publishes a release as usual. How the build works, its inputs and its pitfalls are documented in `atdr/latex-build`'s AGENTS.md.
+The workflow uses `atdr/latex-build@v1`, which follows every 1.x release, so fixes arrive without a change here. Dependabot opens a PR when a new major version (with breaking changes) is out; the PR's build runs on its branch (the PDF is a run artifact there), and merging it publishes a release as usual. To freeze a document's build, pin an exact release (`@v1.2.3`) instead. How the build works, its inputs and its pitfalls are documented in `atdr/latex-build`'s AGENTS.md.
 
 ## Conventions
 

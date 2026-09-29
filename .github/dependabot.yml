@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Opens a PR for each new release of atdr/latex-build
+  # Opens a PR for each new major version of atdr/latex-build
   - package-ecosystem: github-actions
     directory: /
     schedule:
