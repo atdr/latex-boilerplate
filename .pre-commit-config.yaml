@@ -1,0 +1,10 @@
+# Formats LaTeX sources before each commit; run `pre-commit install` once
+# per clone. If format_check is on in compile.yml, keep rev in step with
+# tex_fmt_version there, so the hook and CI agree.
+repos:
+  - repo: https://github.com/WGUNDERWOOD/tex-fmt
+    rev: v0.5.7
+    hooks:
+      - id: tex-fmt
+        # .bib files usually come from a reference manager, so leave them be
+        files: \.(tex|cls|sty)$

@@ -10,6 +10,7 @@ Template repository for a LaTeX document that GitHub Actions compiles to PDF on 
 | `main.tex` | The document (root file; set by `root_file`) |
 | `.latexmkrc` | latexmk settings for local builds (XeLaTeX via `$pdf_mode = 5`); the workflow's `engine` overrides it |
 | `texlive-packages.txt` | TeX Live packages to install (tlmgr names, `#` comments). Generated and committed by the workflow |
+| `.pre-commit-config.yaml` | tex-fmt hook for `.tex`, `.cls` and `.sty` files (not `.bib`); keep its `rev` in step with the tex-fmt version CI uses |
 | `.github/workflows/compile.yml` | Calls `atdr/latex-build` and holds the build settings |
 | `.github/dependabot.yml` | Opens a PR for each new `atdr/latex-build` release |
 
