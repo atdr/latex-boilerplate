@@ -20,7 +20,7 @@ on:
 # build-<short SHA>; see https://github.com/atdr/latex-build
 jobs:
   build:
-    uses: atdr/latex-build/.github/workflows/build.yml@v1.0.0
+    uses: atdr/latex-build/.github/workflows/build.yml@v1
     # Needed to commit the package list, and to create tags and releases
     permissions:
       contents: write
