@@ -6,7 +6,8 @@ on:
     inputs:
       texlive_version:
         description: >-
-          TeX Live version (e.g. 2017), overriding TEXLIVE_VERSION below
+          TeX Live version (e.g. 2017) for this run only, overriding
+          texlive_version below; such a run never commits the package list
         required: false
       update_packages:
         description: >-
@@ -15,150 +16,21 @@ on:
         type: boolean
         default: false
 
-env:
-  # Root .tex file to compile (Overleaf projects often use another name)
-  ROOT_FILE: main.tex
-  # latexmk engine flag: -pdf (pdfLaTeX, Overleaf's default), -xelatex or
-  # -lualatex
-  ENGINE: -xelatex
-  # TeX Live release year (e.g. 2017), or latest
-  TEXLIVE_VERSION: latest
-
-# Builds with only the packages in texlive-packages.txt. If that file is
-# missing, the build is missing a TeX Live package, or a manual run asks for
-# it, regenerates the list from a full TeX Live install, builds again with the
-# new list and commits it.
+# Compiles the document and publishes the PDF as a release tagged
+# build-<short SHA>; see https://github.com/atdr/latex-build
 jobs:
-  build_latex:
-
-    runs-on: ubuntu-latest
-
-    # Needed to create tags and releases
-    permissions:
-      contents: write
-
-    outputs:
-      update_packages: >-
-        ${{ steps.check.outputs.update_packages
-        || steps.compile.outputs.missing_packages }}
-
-    steps:
-      - name: Set up Git repository
-        uses: actions/checkout@v7
-        with:
-          # Keep the token away from the build; only publishing uses it
-          persist-credentials: false
-      - name: Check package list
-        id: check
-        env:
-          UPDATE: ${{ inputs.update_packages }}
-        run: |
-          if [ "$UPDATE" = true ] || [ ! -f texlive-packages.txt ]; then
-            echo "update_packages=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Set up TeX Live
-        if: ${{ !steps.check.outputs.update_packages }}
-        uses: ./.github/actions/setup-texlive
-        with:
-          texlive_version: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
-      - name: Compile LaTeX document
-        id: compile
-        if: ${{ !steps.check.outputs.update_packages }}
-        # A missing package is handled by the update_packages job
-        continue-on-error: true
-        run: .github/scripts/compile.sh
-      - name: Fail on other errors
-        if: >-
-          ${{ steps.compile.outcome == 'failure'
-          && !steps.compile.outputs.missing_packages }}
-        run: exit 1
-      - name: Publish PDF
-        if: ${{ steps.compile.outcome == 'success' }}
-        uses: ./.github/actions/publish-pdf
-        with:
-          warning: >-
-            ${{ steps.compile.outputs.compiled_with_errors
-            && 'Compiled with errors; see the run-log artifact.' || '' }}
-      - name: Upload logs on failure
-        if: ${{ failure() || steps.compile.outputs.compiled_with_errors }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: run-log
-          path: "*.log"
-
-  update_packages:
-    needs: build_latex
-    if: ${{ needs.build_latex.outputs.update_packages }}
-
-    runs-on: ubuntu-latest
-
+  build:
+    uses: atdr/latex-build/.github/workflows/build.yml@v1.0.0
     # Needed to commit the package list, and to create tags and releases
     permissions:
       contents: write
-
-    steps:
-      - name: Set up Git repository
-        uses: actions/checkout@v7
-        with:
-          # Keep the token away from the builds; only committing and
-          # publishing use it
-          persist-credentials: false
-      - name: List packages the document uses
-        # Downloads all of TeX Live (~2 min); a generous timeout in case the
-        # compile hangs instead of erroring
-        timeout-minutes: 20
-        env:
-          VERSION: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
-        run: |
-          # A past release has a frozen image; the current one is latest
-          tag=latest
-          if [ "$VERSION" != latest ] && docker manifest inspect \
-            "texlive/texlive:TL${VERSION}-historic" > /dev/null 2>&1; then
-            tag="TL${VERSION}-historic"
-          fi
-          docker run --rm -v "$PWD:/workdir" -w /workdir \
-            -e ROOT_FILE -e ENGINE "texlive/texlive:$tag" \
-            .github/scripts/list-packages.sh
-          # Remove the full build's outputs (owned by the container's root
-          # user), so the next build cannot reuse them
-          sudo chown -R "$(id -u):$(id -g)" .
-          git clean -fdx -e texlive-packages.txt
-      - name: Set up TeX Live
-        uses: ./.github/actions/setup-texlive
-        with:
-          texlive_version: ${{ inputs.texlive_version || env.TEXLIVE_VERSION }}
-      - name: Compile LaTeX document
-        id: compile
-        run: .github/scripts/compile.sh
-      - name: Commit package list
-        # Only reached if the document compiled with exactly the listed
-        # packages. A run with another TeX Live version than TEXLIVE_VERSION
-        # does not commit, so the list always matches TEXLIVE_VERSION; nor
-        # does a run for a tag, which has no branch to commit to.
-        if: >-
-          ${{ github.ref_type == 'branch'
-          && (!inputs.texlive_version
-          || inputs.texlive_version == env.TEXLIVE_VERSION) }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git add texlive-packages.txt
-          git diff --cached --quiet && exit 0
-          bot='github-actions[bot]'
-          git config user.name "$bot"
-          git config user.email "41898282+$bot@users.noreply.github.com"
-          git commit -m "chore: update TeX Live package list"
-          remote="https://x-access-token:${GH_TOKEN}@github.com"
-          git push "$remote/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
-      - name: Publish PDF
-        uses: ./.github/actions/publish-pdf
-        with:
-          warning: >-
-            ${{ steps.compile.outputs.compiled_with_errors
-            && 'Compiled with errors; see the run-log artifact.' || '' }}
-      - name: Upload logs on failure
-        if: ${{ failure() || steps.compile.outputs.compiled_with_errors }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: run-log
-          path: "*.log"
+    with:
+      # Root .tex file to compile (Overleaf projects often use another name)
+      root_file: main.tex
+      # latexmk engine flag: -pdf (pdfLaTeX, Overleaf's default), -xelatex or
+      # -lualatex
+      engine: -xelatex
+      # TeX Live release year (e.g. "2017"), or latest
+      texlive_version: latest
+      texlive_version_override: ${{ inputs.texlive_version }}
+      update_packages: ${{ inputs.update_packages || false }}
