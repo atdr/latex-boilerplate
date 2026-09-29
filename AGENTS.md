@@ -6,6 +6,7 @@ Template repository for a LaTeX document that GitHub Actions compiles to PDF on 
 
 | Path | Purpose |
 |---|---|
+| `README.md` | User-facing overview: getting started, where PDFs go, local builds |
 | `main.tex` | The document (root file; set by `root_file`) |
 | `.latexmkrc` | latexmk settings for local builds (XeLaTeX via `$pdf_mode = 5`); the workflow's `engine` overrides it |
 | `texlive-packages.txt` | TeX Live packages to install (tlmgr names, `#` comments). Generated and committed by the workflow |
