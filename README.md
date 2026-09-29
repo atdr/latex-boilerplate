@@ -8,28 +8,11 @@ A starting point for a LaTeX document that GitHub Actions compiles to PDF on eve
 
 1. Click **Use this template** → **Create a new repository**.
 2. Write your document in `main.tex`.
-3. Push. The first build generates and commits `texlive-packages.txt`.
+3. Push. The first build also generates and commits `texlive-packages.txt`, which lists the TeX Live packages to install.
 
-## Where the PDF goes
+## Settings and the build
 
-- **On `main`:** each build is published as a release tagged `build-<short SHA>`, listed under Releases. Releases do not expire.
-- **On other branches:** the PDF is attached to the workflow run as an artifact (Actions tab → the run → Artifacts).
-
-## Settings
-
-Set these under `with` in `.github/workflows/compile.yml`:
-
-| Setting | Default | Meaning |
-|---|---|---|
-| `root_file` | `main.tex` | Root `.tex` file, relative to the repository root |
-| `engine` | `-xelatex` | `-pdf` (pdfLaTeX), `-xelatex` or `-lualatex` |
-| `texlive_version` | `latest` | TeX Live release year, e.g. `"2017"` |
-| `lint` | `true` | Annotate chktex findings on the lines they refer to |
-| `annotate_warnings` | `true` | Annotate warnings from the LaTeX log, such as undefined references and overfull boxes |
-| `format_check` | `true` | Fail a separate `format` job when a file is not formatted with tex-fmt (the PDF is still published) |
-| `tex_fmt_version` | `"0.5.7"` | tex-fmt release for `format_check`; keep it equal to the hook's `rev` |
-
-After changing `root_file`, `engine` or `texlive_version`, run the workflow manually (Actions tab → Build LaTeX document → Run workflow) with **Update package list** ticked. See [AGENTS.md](AGENTS.md) for details, including how to move an existing Overleaf project over.
+The build settings are the inputs under `with` in `.github/workflows/compile.yml`. [`atdr/latex-build`'s README](https://github.com/atdr/latex-build#readme) documents each input, where the PDF is published, and [when to run with **Update package list** ticked](https://github.com/atdr/latex-build#the-package-list). To move an existing Overleaf project over, see [AGENTS.md](AGENTS.md#adapting-an-overleaf-project).
 
 ## Building locally
 
