@@ -12,8 +12,11 @@ version you choose.
 ## Getting started
 
 1. Click **Use this template** → **Create a new repository**.
-2. Replace `latex-boilerplate` with the new repository's name in `README.md`,
-   `SECURITY.md` and `.github/ISSUE_TEMPLATE/bug_report.yml`.
+2. Point the inherited files at the new repository: replace
+   `atdr/latex-boilerplate` with its `<owner>/<repo>` in `README.md` and
+   `SECURITY.md`, `latex-boilerplate` with its name in
+   `.github/ISSUE_TEMPLATE/bug_report.yml`, and `atdr` with your sponsor
+   accounts in `.github/FUNDING.yml`, or delete that file.
 3. Write your document in `main.tex`.
 4. Push. The first build also generates and commits `texlive-packages.txt`,
    which lists the TeX Live packages to install.
