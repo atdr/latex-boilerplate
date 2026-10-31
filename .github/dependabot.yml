@@ -1,9 +1,26 @@
 version: 2
 updates:
-  # Opens a PR for each new major version of atdr/latex-build
+  # Major-tag pins (@v7) absorb minor and patch releases on their own but never
+  # cross a major; this surfaces new majors as PRs. It also bumps the
+  # atdr/github-boilerplate reusable workflows, which are pinned to exact tags.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     commit-message:
       prefix: ci
+    # A new release waits out GitHub's default three days before Dependabot
+    # offers it, time for a compromised one to be caught and pulled. atdr's own
+    # actions skip the wait: there is no third party to wait on, and a
+    # boilerplate fix would otherwise reach callers days late.
+    cooldown:
+      default-days: 3
+      exclude:
+        - 'atdr/*'
+    # Dependabot counts each reusable workflow file as its own dependency, so
+    # one boilerplate release would open a PR per pinned file and leave the
+    # pins on mixed versions between merges. Grouped, they move together.
+    groups:
+      github-boilerplate:
+        patterns:
+          - 'atdr/github-boilerplate*'
