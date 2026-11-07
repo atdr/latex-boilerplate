@@ -32,7 +32,10 @@ The build settings are the inputs under `with` in
 [`atdr/latex-build`'s README](https://github.com/atdr/latex-build#readme)
 documents each input, where the PDF is published, and
 [when to run with **Update package list** ticked](https://github.com/atdr/latex-build#the-package-list).
-To move an existing Overleaf project over, see
+With the `main` ruleset from step 5 in place, start that run on a branch, not
+`main`: it commits the new list to the branch it ran on, and the ruleset refuses
+any direct push to `main`, so a run on `main` fails. Merge the branch's PR to
+bring the list in. To move an existing Overleaf project over, see
 [AGENTS.md](AGENTS.md#adapting-an-overleaf-project).
 
 ## Building locally
