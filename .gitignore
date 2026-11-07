@@ -288,3 +288,12 @@ TSWLatexianTemp*
 
 # output
 main.pdf
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Editors / OS
+.DS_Store
