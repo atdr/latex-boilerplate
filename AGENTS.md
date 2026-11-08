@@ -27,11 +27,6 @@ package list" ticked, is documented in
 [`atdr/latex-build`](https://github.com/atdr/latex-build) (README for callers,
 AGENTS.md for internals); link there rather than restating it here.
 
-One thing latex-build cannot know: where `main` has the github-boilerplate
-ruleset (`configure.sh`), nothing may push to it directly, including the
-workflow. A package list run commits to the branch it ran on, so start it on a
-branch and merge the PR; on `main` its push is refused and the run fails.
-
 `tex_fmt_version` in `compile.yml` and the hook's `rev` in
 `.pre-commit-config.yaml` must name the same tex-fmt release, so the hook and CI
 agree.
@@ -72,5 +67,5 @@ workflows are pinned to exact tags.
   it.
 - **Commits and PR titles:** use
   [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat: …`,
-  `fix: …`, `docs: …`). The workflow's own list commits, on the branch it ran
-  on, use `chore: update TeX Live package list`.
+  `fix: …`, `docs: …`). The workflow's own list commits use
+  `chore: update TeX Live package list`.
